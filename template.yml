@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Resources:
+
   MyLambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -25,16 +26,46 @@ Resources:
   MyLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: MyServerlessFunction
+      FunctionName: SimpleCalculatorLambda
       Handler: index.handler
       Role: !GetAtt MyLambdaExecutionRole.Arn
       Code:
         ZipFile: |
           def handler(event, context):
+              # Extract query parameters from the event object
+              operation = event['queryStringParameters'].get('operation')
+              num1 = float(event['queryStringParameters'].get('num1', 0))
+              num2 = float(event['queryStringParameters'].get('num2', 0))
+              
+              # Initialize result variable
+              result = None
+              message = ""
+
+              # Perform the calculation based on the operation provided
+              if operation == 'add':
+                  result = num1 + num2
+                  message = f"The sum of {num1} and {num2} is {result}"
+              elif operation == 'subtract':
+                  result = num1 - num2
+                  message = f"The difference between {num1} and {num2} is {result}"
+              elif operation == 'multiply':
+                  result = num1 * num2
+                  message = f"The product of {num1} and {num2} is {result}"
+              elif operation == 'divide':
+                  if num2 == 0:
+                      message = "Error: Division by zero is not allowed!"
+                  else:
+                      result = num1 / num2
+                      message = f"The quotient of {num1} divided by {num2} is {result}"
+              else:
+                  message = "Invalid operation. Please use one of: add, subtract, multiply, divide."
+              
+              # Return the response in the expected format for API Gateway
               return {
                   'statusCode': 200,
-                  'body': 'Hello from Lambda!'
+                  'body': message
               }
+
       Runtime: python3.8
       MemorySize: 128
       Timeout: 10
@@ -42,15 +73,15 @@ Resources:
   MyApiGateway:
     Type: AWS::ApiGateway::RestApi
     Properties:
-      Name: MyServerlessAPI
-      Description: "API Gateway for serverless API example"
+      Name: SimpleCalculatorAPI
+      Description: "API Gateway for Simple Calculator"
 
   LambdaApiGatewayResource:
     Type: AWS::ApiGateway::Resource
     Properties:
       RestApiId: !Ref MyApiGateway
       ParentId: !GetAtt MyApiGateway.RootResourceId
-      PathPart: my-resource
+      PathPart: calculate
 
   LambdaApiMethod:
     Type: AWS::ApiGateway::Method
